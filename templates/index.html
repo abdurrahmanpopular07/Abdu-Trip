@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TripGenius — AI Travel Planner</title>
+<meta name="description" content="TripGenius plans a full, budget-aware trip in seconds — built for mobile-first Indian travellers.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="horizon-fixed" aria-hidden="true"></div>
+
+<header class="site-header">
+  <div class="wrap header-row">
+    <a class="logo" href="#top">
+      <span class="logo-mark">TG</span>
+      <span class="logo-word">TripGenius</span>
+    </a>
+    <nav class="site-nav">
+      <a href="#how">How it works</a>
+      <a href="#plan">Plan a trip</a>
+      <a href="#alerts">Smart alerts</a>
+      {% if current_user_name %}
+        <span class="nav-user">Hi, {{ current_user_name.split(' ')[0] }}</span>
+        <form method="POST" action="{{ url_for('logout') }}" class="nav-logout-form">
+          <button type="submit" class="nav-link-btn">Log out</button>
+        </form>
+      {% else %}
+        <a href="{{ url_for('login') }}">Log in</a>
+        <a href="{{ url_for('signup') }}" class="nav-cta">Sign up</a>
+      {% endif %}
+    </nav>
+  </div>
+</header>
+
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    <div class="flash-banner wrap">
+      {% for m in messages %}<p>{{ m }}</p>{% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+<main id="top">
+
+  <!-- HERO + LIVE PLANNER -->
+  <section class="hero" id="plan">
+    <div class="wrap hero-grid">
+      <div class="hero-copy">
+        <p class="eyebrow">AI travel planner · built for golden-hour planners</p>
+        <h1 class="display">Your next trip,<br>planned before<br>the kettle boils.</h1>
+        <p class="lede">Tell TripGenius your budget, your days off, and where you're headed.
+          A trained cost model and a curated planning engine hand you back a real,
+          bookable, day-by-day trip — no tabs, no spreadsheets, no guesswork.</p>
+        <div class="hero-stats">
+          <div><span class="stat-num">3</span><span class="stat-label">inputs to a full plan</span></div>
+          <div><span class="stat-num">&lt;2s</span><span class="stat-label">to generate</span></div>
+          <div><span class="stat-num">48</span><span class="stat-label">Indian destinations, searchable</span></div>
+        </div>
+      </div>
+
+      <div class="planner-card" id="planner-card">
+        <form id="plan-form" novalidate>
+          <div class="field autocomplete-field">
+            <label for="destination-input">Destination</label>
+            <input type="text" id="destination-input" placeholder="Search any Indian destination — city or state" autocomplete="off">
+            <input type="hidden" id="destination" name="destination">
+            <div class="autocomplete-list" id="destination-list" hidden></div>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="days">Days</label>
+              <input type="number" id="days" name="days" min="1" max="21" value="4" required>
+            </div>
+            <div class="field">
+              <label for="budget">Total budget (₹)</label>
+              <input type="number" id="budget" name="budget" min="1000" step="500" value="25000" required>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Your starting point</label>
+            <button type="button" class="btn-location" id="use-location-btn">📍 Use my current location</button>
+            <p class="source-status" id="source-status">or search your city below</p>
+            <div class="autocomplete-field">
+              <input type="text" id="source-input" placeholder="Search your city or village's nearest town" autocomplete="off">
+              <input type="hidden" id="source-key" name="source_key">
+              <input type="hidden" id="source-lat" name="source_lat">
+              <input type="hidden" id="source-lon" name="source_lon">
+              <div class="autocomplete-list" id="source-list" hidden></div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>How are you travelling?</label>
+            <div class="style-toggle travel-mode-toggle" role="radiogroup" aria-label="Travel mode">
+              <input type="radio" id="mode-car" name="travel_mode" value="car" checked>
+              <label for="mode-car">Car</label>
+              <input type="radio" id="mode-bike" name="travel_mode" value="bike">
+              <label for="mode-bike">Bike</label>
+              <input type="radio" id="mode-bus" name="travel_mode" value="bus">
+              <label for="mode-bus">Bus</label>
+              <input type="radio" id="mode-train" name="travel_mode" value="train">
+              <label for="mode-train">Train</label>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Travel style</label>
+            <div class="style-toggle" role="radiogroup" aria-label="Travel style">
+              <input type="radio" id="style-relaxed" name="style" value="relaxed" checked>
+              <label for="style-relaxed">Relaxed</label>
+              <input type="radio" id="style-active" name="style" value="active">
+              <label for="style-active">Active</label>
+              <input type="radio" id="style-family" name="style" value="family">
+              <label for="style-family">Family</label>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-primary" id="generate-btn">
+            <span class="btn-label">Plan my trip</span>
+            <span class="btn-spinner" aria-hidden="true"></span>
+          </button>
+          <p class="form-error" id="form-error" role="alert" aria-live="polite"></p>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- RESULTS (hidden until a plan is generated) -->
+  <section class="results" id="results" hidden>
+    <div class="wrap">
+
+      <div class="results-header">
+        <div>
+          <p class="eyebrow" id="result-eyebrow"></p>
+          <h2 class="display results-title" id="result-title"></h2>
+        </div>
+        <p class="model-note" id="model-note"></p>
+      </div>
+
+      <div class="dest-image-wrap">
+        <div class="dest-image-skeleton" id="dest-image-skeleton"></div>
+        <img id="destination-image" class="dest-image" alt="" hidden>
+        <p class="dest-image-caption">AI-generated preview — actual sights may vary</p>
+      </div>
+
+      <div class="results-grid">
+        <div class="card cost-card">
+          <h3>Estimated cost vs. your budget</h3>
+          <div class="cost-compare">
+            <div class="cost-bar-row">
+              <span class="cost-bar-label">Your budget</span>
+              <div class="cost-bar-track"><div class="cost-bar-fill budget-fill" id="bar-budget"></div></div>
+              <span class="cost-bar-value" id="val-budget"></span>
+            </div>
+            <div class="cost-bar-row">
+              <span class="cost-bar-label">Total needed</span>
+              <div class="cost-bar-track"><div class="cost-bar-fill estimate-fill" id="bar-estimate"></div></div>
+              <span class="cost-bar-value" id="val-estimate"></span>
+            </div>
+          </div>
+          <p class="cost-verdict" id="cost-verdict"></p>
+        </div>
+
+        <div class="card travel-card">
+          <h3>Getting there</h3>
+          <div class="travel-summary">
+            <p class="travel-route" id="travel-route"></p>
+            <div class="travel-stats">
+              <div><span class="travel-stat-num" id="travel-distance"></span><span class="travel-stat-label">km one-way</span></div>
+              <div><span class="travel-stat-num" id="travel-cost-num"></span><span class="travel-stat-label">travel cost (round trip)</span></div>
+            </div>
+            <p class="travel-detail" id="travel-detail"></p>
+          </div>
+        </div>
+
+        <div class="card breakdown-card">
+          <h3>Where your money goes</h3>
+          <ul class="breakdown-list" id="breakdown-list"></ul>
+        </div>
+
+        <div class="card highlights-card">
+          <h3 id="highlights-title">Local highlights</h3>
+          <div class="highlight-group">
+            <span class="highlight-label">Famous food</span>
+            <div class="chip-list" id="food-chips"></div>
+          </div>
+          <div class="highlight-group">
+            <span class="highlight-label">Must-see</span>
+            <div class="chip-list" id="things-chips"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="itinerary-block">
+        <h3>Day-by-day plan</h3>
+        <div class="itinerary-list" id="itinerary-list"></div>
+      </div>
+
+      <div class="tips-block">
+        <h3>Notes from TripGenius</h3>
+        <ul class="tips-list" id="tips-list"></ul>
+      </div>
+
+      <div class="results-actions">
+        <button class="btn-secondary" id="print-btn" type="button">Save as PDF</button>
+        <button class="btn-ghost" id="replan-btn" type="button">Plan another trip</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROBLEM -->
+  <section class="section problem">
+    <div class="wrap">
+      <p class="eyebrow">Why TripGenius exists</p>
+      <h2 class="display">Planning shouldn't take longer than the trip.</h2>
+      <div class="problem-grid">
+        <div class="problem-item">
+          <span class="problem-num">01</span>
+          <p>Comparing hotels, routes, and costs across tabs eats an entire evening.</p>
+        </div>
+        <div class="problem-item">
+          <span class="problem-num">02</span>
+          <p>Manual day-by-day budgeting is error-prone and easy to get badly wrong.</p>
+        </div>
+        <div class="problem-item">
+          <span class="problem-num">03</span>
+          <p>Overwhelmed travellers postpone the trip entirely — or overspend on it.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="section how" id="how">
+    <div class="wrap">
+      <p class="eyebrow">How it works</p>
+      <h2 class="display">One flow, three steps.</h2>
+      <div class="how-grid">
+        <div class="how-step">
+          <span class="how-step-num">1</span>
+          <h3>Tell the app</h3>
+          <p>Budget, number of days, destination — and, if you like, a travel style.</p>
+        </div>
+        <div class="how-step">
+          <span class="how-step-num">2</span>
+          <h3>The engine plans instantly</h3>
+          <p>A trained cost model and a curated recommender build your itinerary, hotel tier, and budget split in seconds.</p>
+        </div>
+        <div class="how-step">
+          <span class="how-step-num">3</span>
+          <h3>Book or share</h3>
+          <p>Save the plan as a PDF, or hand it straight to the group chat.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SMART ALERTS -->
+  <section class="section alerts" id="alerts">
+    <div class="wrap">
+      <p class="eyebrow">On the roadmap</p>
+      <h2 class="display">Smart alerts, built for the trip after this one.</h2>
+      <div class="alerts-grid">
+        <div class="alert-card">
+          <h3>Weather alerts</h3>
+          <p>Local forecasts and packing suggestions pushed ahead of departure.</p>
+        </div>
+        <div class="alert-card">
+          <h3>Travel advisories</h3>
+          <p>Real-time notes on transport, safety, and public holidays affecting your plan.</p>
+        </div>
+        <div class="alert-card">
+          <h3>Price predictions</h3>
+          <p>A nudge when flight or hotel prices drop, with a recommended booking window.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-row">
+    <p>TripGenius — an AI/ML internship project. Built with a trained cost model and a rule-based recommendation engine in Python.</p>
+    <p class="footer-fine">Prices are indicative estimates, not live bookings.</p>
+  </div>
+</footer>
+
+<script id="destinations-data" type="application/json">{{ destinations_json | safe }}</script>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
